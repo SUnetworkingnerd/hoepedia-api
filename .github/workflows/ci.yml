@@ -1,0 +1,31 @@
+# Builds and tests on Linux, Windows and macOS for every push and pull request.
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --locked
+      - run: cargo build --release --locked
+      # Start the server with no configuration and run its built-in self-test.
+      - name: Self-test
+        shell: bash
+        run: |
+          BIN=target/release/hoepedia-api
+          [ -f "$BIN.exe" ] && BIN="$BIN.exe"
+          "$BIN" --port 3999 --data ci-data &
+          for i in $(seq 1 30); do "$BIN" --healthcheck 2>/dev/null && break; sleep 1; done
+          PORT=3999 DATABASE_PATH=ci-data/wiki.db "$BIN" check
+        env:
+          PORT: 3999

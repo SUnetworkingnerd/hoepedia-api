@@ -1,0 +1,14 @@
+target
+.git
+.gitignore
+.env
+*.md
+Dockerfile
+docker-compose.yml
+prometheus.yml
+data
+.github
+start.sh
+start.ps1
+start.bat
+test-hoepedia.sh

@@ -1,0 +1,53 @@
+[package]
+name = "hoepedia-api"
+version = "0.8.0"
+edition = "2021"
+description = "A self-hosted wiki engine exposed purely as an API (Action-API-style + REST)"
+
+[dependencies]
+axum = "0.7"
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "signal", "time", "io-util", "fs"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "timeout", "limit"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_urlencoded = "0.7"
+rusqlite = { version = "0.32", features = ["bundled"] }
+# NOTE: moka >= 0.12.12 no longer enables `sync` by default; it must be explicit.
+moka = { version = "0.12", default-features = false, features = ["sync"] }
+sha2 = "0.10"
+rand = "0.8"
+similar = "2"
+multer = "3"
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+base64 = "0.22"
+tokio-util = { version = "0.7", features = ["io"] }
+# Sandboxed Lua 5.4 for {{#invoke:Module|function}} (Scribunto-style modules)
+mlua = { version = "0.10", features = ["lua54", "vendored"] }
+percent-encoding = "2"
+# Thumbnails: pure-Rust decoders/encoders only (no C image libraries).
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp"] }
+# SVG rasterising for thumbnails (pure Rust). A font is embedded because the runtime image has none.
+resvg = { version = "0.45", default-features = false, features = ["text", "raster-images"] }
+dejavu = "2.37"
+# Animated WebP thumbnails (libwebp, compiled from source into the binary).
+webp-animation = { version = "0.10", features = ["static"] }
+# Blocking HTTP client for replication (replica -> primary) and interwiki transclusion/search.
+# Time zones for {{#timel}} and local-time variables.
+chrono-tz = { version = "0.10", default-features = false, features = ["std"] }
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+form_urlencoded = "1"
+md-5 = "0.10"
+sha1 = "0.10"
+ureq = { version = "2", default-features = false, features = ["tls"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[target.'cfg(unix)'.dependencies]
+# Resource limits for the media helper programs.
+libc = "0.2"

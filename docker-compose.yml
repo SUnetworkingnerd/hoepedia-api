@@ -1,0 +1,123 @@
+services:
+  hoepedia-api:
+    build: .
+    image: hoepedia-api:latest
+    container_name: hoepedia-api
+    restart: unless-stopped
+    init: true
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${HOST_PORT:-3000}:3000"
+    environment:
+      PORT: "3000"
+      BIND_ADDR: "0.0.0.0"
+      DATABASE_PATH: /data/wiki.db
+      # Optional: left empty, a token is created on first start and saved in the data volume
+      # (shown in `docker compose logs`, or: docker compose exec hoepedia-api hoepedia-api token).
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      SITE_NAME: ${SITE_NAME:-Hoepedia}
+      ARTICLE_PATH: ${ARTICLE_PATH:-}
+      ANON_READ: ${ANON_READ:-true}
+      ANON_EDIT: ${ANON_EDIT:-false}
+      MAX_PAGE_BYTES: ${MAX_PAGE_BYTES:-2000000}
+      RENDER_CACHE_ENTRIES: ${RENDER_CACHE_ENTRIES:-5000}
+      READ_CONNECTIONS: ${READ_CONNECTIONS:-4}
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-300}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      REQUEST_TIMEOUT_SECS: ${REQUEST_TIMEOUT_SECS:-25}
+      REFRESH_LINKS_LIMIT: ${REFRESH_LINKS_LIMIT:-500}
+      CACHE_MAX_AGE_SECS: ${CACHE_MAX_AGE_SECS:-0}
+      FILE_PATH: ${FILE_PATH:-}
+      UPLOAD_MAX_BYTES: ${UPLOAD_MAX_BYTES:-10000000}
+      READ_ONLY: ${READ_ONLY:-false}
+      BACKUP_DIR: /data/backups
+      ALLOW_SVG: ${ALLOW_SVG:-true}
+      THUMB_MAX_MEGAPIXELS: ${THUMB_MAX_MEGAPIXELS:-25}
+      THUMB_CACHE_BYTES: ${THUMB_CACHE_BYTES:-64000000}
+      ANON_IDENTITY: ${ANON_IDENTITY:-ip}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      INTERWIKI_CACHE_SECS: ${INTERWIKI_CACHE_SECS:-3600}
+      # Set both to run this instance as a live read replica of another one.
+      REPLICA_OF: ${REPLICA_OF:-}
+      REPLICA_TOKEN: ${REPLICA_TOKEN:-}
+      REPLICA_FORWARD_WRITES: ${REPLICA_FORWARD_WRITES:-true}
+      REPL_MIN_ACKS: ${REPL_MIN_ACKS:-0}
+      PEERS: ${PEERS:-}
+      FAILOVER_AFTER_SECS: ${FAILOVER_AFTER_SECS:-0}
+      TIMEZONE: ${TIMEZONE:-UTC}
+      SITE_LANG: ${SITE_LANG:-en}
+      THUMB_DIR: /data/thumbs
+      INTERWIKI_POLL_SECS: ${INTERWIKI_POLL_SECS:-60}
+      MEDIA_PREVIEWS: ${MEDIA_PREVIEWS:-on}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - wiki-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # Optional live read replica on the same host: docker compose --profile replica up -d
+  # (On another machine, run the main service there with REPLICA_OF / REPLICA_TOKEN set instead.)
+  hoepedia-replica:
+    image: hoepedia-api:latest
+    profiles: ["replica"]
+    restart: unless-stopped
+    init: true
+    depends_on:
+      - hoepedia-api
+    ports:
+      - "${HOST_BIND:-127.0.0.1}:${REPLICA_HOST_PORT:-3001}:3000"
+    environment:
+      PORT: "3000"
+      DATABASE_PATH: /data/wiki.db
+      BACKUP_DIR: /data/backups
+      REPLICA_OF: http://hoepedia-api:3000
+      # The replica profile needs ADMIN_TOKEN set in .env (both nodes must share it).
+      REPLICA_TOKEN: ${ADMIN_TOKEN:-}
+      ADMIN_TOKEN: ${ADMIN_TOKEN:-}
+      THUMB_DIR: /data/thumbs
+      TIMEZONE: ${TIMEZONE:-UTC}
+      SITE_LANG: ${SITE_LANG:-en}
+      SITE_NAME: ${SITE_NAME:-Hoepedia}
+      ARTICLE_PATH: ${ARTICLE_PATH:-}
+      FILE_PATH: ${FILE_PATH:-}
+      ANON_READ: ${ANON_READ:-true}
+      RATE_LIMIT_PER_MIN: ${RATE_LIMIT_PER_MIN:-300}
+      TRUST_PROXY: ${TRUST_PROXY:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-*}
+      RUST_LOG: ${RUST_LOG:-info}
+    volumes:
+      - replica-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 768m
+    pids_limit: 256
+
+  # Optional: docker compose --profile monitoring up -d
+  prometheus:
+    image: prom/prometheus:latest
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - hoepedia-api
+
+volumes:
+  wiki-data:
+  replica-data:

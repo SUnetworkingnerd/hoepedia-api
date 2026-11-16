@@ -1,0 +1,8 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: hoepedia-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["hoepedia-api:3000"]
